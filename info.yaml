@@ -35,10 +35,10 @@ pinout:
   # Outputs
   uo[0]: "rs"
   uo[1]: "en"
-  uo[2]: "data"
-  uo[3]: ""
-  uo[4]: ""
-  uo[5]: ""
+  uo[2]: "data_0"
+  uo[3]: "data_1"
+  uo[4]: "data_2"
+  uo[5]: "data_3"
   uo[6]: ""
   uo[7]: ""
 

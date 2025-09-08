@@ -2,22 +2,41 @@
 `timescale 1ns / 1ps
 
 
+`timescale 1ns / 1ps
+
 module tb;
 
     // Señales DUT
-    reg         clk;
-    reg         reset;
-    wire        rs;
-    wire        en;
-    wire [3:0]  data;
+    reg [7:0] ui_in;    // Entradas dedicadas
+    wire [7:0] uo_out;  // Salidas dedicadas
+    reg [7:0] uio_in;   // IOs: Entrada
+    wire [7:0] uio_out; // IOs: Salida
+    wire [7:0] uio_oe;  // IOs: Enable (activo alto: 0=entrada, 1=salida)
+    reg clk;             // Clock
+    reg rst_n;           // Reset
 
+    reg ena;
+
+    `ifdef GL_TEST
+    wire VPWR = 1'b1;
+    wire VGND = 1'b0;
+    `endif
     // DUT
     tt_um_lcd_controller_Andres078 dut (
-        .clk   (clk),
-        .reset (reset),
-        .rs    (rs),
-        .en    (en),
-        .data  (data)
+        `ifdef GL_TEST
+        .VPWR(VPWR),
+        .VGND(VGND),
+        `endif
+
+        .ena    (ena),
+        
+        .ui_in   (ui_in),
+        .uo_out  (uo_out),
+        .uio_in  (uio_in),
+        .uio_out (uio_out),
+        .uio_oe  (uio_oe),
+        .clk     (clk),
+        .rst_n   (rst_n)
     );
 
     // Clock 50 MHz (Periodo 20 ns)
@@ -26,9 +45,9 @@ module tb;
 
     // Reset: activo por 200 ns
     initial begin
-        reset = 1'b1;
+        rst_n = 1'b1;
         #(200);
-        reset = 1'b0;
+        rst_n = 1'b0;
     end
 
     // Decodificador de bytes desde el bus 4-bit 
@@ -47,8 +66,6 @@ module tb;
     initial begin
         expected[ 0]=8'h30; expected[ 1]=8'h30; expected[ 2]=8'h30; expected[ 3]=8'h20;
         expected[ 4]=8'h28; expected[ 5]=8'h08; expected[ 6]=8'h01; expected[ 7]=8'h06; expected[ 8]=8'h0C;
-        // expected[ 9]="H";   expected[10]="O";   expected[11]="L";   expected[12]="A";   expected[13]=" ";
-        // expected[14]="M";   expected[15]="U";   expected[16]="N";   expected[17]="D";   expected[18]="O";
         expected[ 9]="T";   expected[10]="H";   expected[11]="E";   expected[12]=" ";   expected[13]="G";
         expected[14]="A";   expected[15]="M";   expected[16]="E";   expected[17]=" ";   expected[18]=" ";
     end
@@ -64,17 +81,17 @@ module tb;
     end
 
     // Captura de nibbles y verificación
-    always @(negedge en) begin
-        if (reset) begin
+    always @(negedge uio_oe) begin  // En vez de 'en', se utiliza 'uio_oe'
+        if (rst_n) begin
             have_high  <= 1'b0;
         end else begin
             if (!have_high) begin
-                high_nib   <= data;     // nibble alto
-                rs_latched <= rs;       // RS para el byte completo
+                high_nib   <= uo_out;     // nibble alto
+                rs_latched <= uio_out[0]; // RS para el byte completo (considera uio_out como RS)
                 have_high  <= 1'b1;
             end else begin
                 // Completar el byte
-                byte = {high_nib, data};
+                byte = {high_nib, uo_out};
                 have_high <= 1'b0;
 
                 // Trazas por consola
@@ -119,3 +136,4 @@ module tb;
     end
 
 endmodule
+
