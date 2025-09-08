@@ -440,9 +440,9 @@ module tt_um_lcd_controller_Andres078(
 
                 S_DONE: begin
                     // Mantener líneas en reposo
-                    en        <= 1'b0;
-                    rs        <= 1'b0;
-                    data      <= 4'd0;
+                    uo_out[1]        <= 1'b0;
+                    uo_out[0]        <= 1'b0;
+                    uo_out[7:2]      <= 4'd0;
                     next_state<= S_DONE;
                 end
 
