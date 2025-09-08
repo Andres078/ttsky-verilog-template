@@ -89,7 +89,6 @@ module tt_um_lcd_controller_Andres078(
     
     reg [2:0]  bstate;
     reg [31:0] en_cnt;
-    reg [31:0] wait_cnt; // reservado
 
     // Contadores y auxiliares
     reg [31:0] delay_cnt;
@@ -127,7 +126,6 @@ module tt_um_lcd_controller_Andres078(
 
             bstate      <= B_IDLE;
             en_cnt      <= 32'd0;
-            wait_cnt    <= 32'd0;
             byte_go     <= 1'b0;
             byte_is_data<= 1'b0;
             byte_val    <= 8'h00;
