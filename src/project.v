@@ -12,7 +12,6 @@ module tt_um_lcd_controller_Andres078(
     output reg        en,         // enable
     output reg [3:0]  data        // D7..D4 del LCD (modo 4 bits)
 );
-    wire _unused = &{ena, 1'b0};
 
     //Parámetros de timing (HD44780)
     localparam [31:0] CLK_FREQ        = 32'd50_000_000;      // Hz
