@@ -11,11 +11,8 @@ module tt_um_lcd_controller_Andres078(
     input  wire       ena        // unused pin (no utilizar)
 );
 
-
     wire _unused = &{ena, 1'b0, ui_in, uio_in};  // Signal to handle unused inputs
 
-    wire rst = ~rst_n;  // Active high reset
-    
     // Par&aacute;metros de timing (HD44780)
     localparam [31:0] CLK_FREQ        = 32'd50_000_000;      // Hz
     localparam [31:0] EN_PULSE_NS     = 32'd500;             // >=450 ns
