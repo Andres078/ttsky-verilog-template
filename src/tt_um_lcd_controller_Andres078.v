@@ -1,8 +1,3 @@
-/*
- * Copyright (c) 2024 Your Name
- * SPDX-License-Identifier: Apache-2.0
- */
-
 `default_nettype none
 
 module tt_um_lcd_controller_Andres078(
@@ -11,21 +6,14 @@ module tt_um_lcd_controller_Andres078(
     input  wire [7:0] uio_in,   // IOs: Input path
     output wire [7:0] uio_out,  // IOs: Output path
     output wire [7:0] uio_oe,   // IOs: Enable path (active high: 0=input, 1=output)
-    input  wire       ena,      // always 1 when the design is powered, so you can ignore it
-    input  wire       clk,      // clock
-    input  wire       rst_n     // reset_n - low to reset
+    input  wire       clk,       // clock
+    input  wire       rst_n,     // reset_n - low to reset
+    input  wire       ena        // unused pin (no utilizar)
 );
 
-    // Unused signals
-    wire _unused = &{ena, ui_in, uio_in, uio_out, uio_oe, rst_n};
+    wire _unused = &{ena, 1'b0, ui_in, uio_in};  // Signal to handle unused inputs
 
-    // Map the dedicated outputs to the LCD control signals
-    assign uo_out[0] = rs;         // rs pin (0=comando, 1=dato)
-    assign uo_out[1] = en;         // en pin (enable)
-    assign uo_out[7:4] = data;    // data pins D7..D4 del LCD
-    assign uio_oe = 8'b00000000;  // No hay pines de salida adicionales, todos 0
-
-    // Parámetros de timing (HD44780)
+    // Par&aacute;metros de timing (HD44780)
     localparam [31:0] CLK_FREQ        = 32'd50_000_000;      // Hz
     localparam [31:0] EN_PULSE_NS     = 32'd500;             // >=450 ns
     localparam [31:0] EN_PULSE_CYC    = (CLK_FREQ * EN_PULSE_NS) / 32'd1_000_000_000 + 32'd1;
@@ -90,13 +78,11 @@ module tt_um_lcd_controller_Andres078(
 
     reg [2:0]  bstate;
     reg [31:0] en_cnt;
-    reg [31:0] wait_cnt; // reservado para pausas adicionales
+    reg [31:0] wait_cnt; // reservado para pausass adicionales
 
-    // Contadores generales y auxiliares
     reg [31:0] delay_cnt;
     reg [3:0]  msg_idx;
 
-    // Paso actual para S_WAIT_BYTE
     localparam [3:0]
         STEP_NONE  = 4'd0,
         STEP_INIT1 = 4'd1,
@@ -112,15 +98,15 @@ module tt_um_lcd_controller_Andres078(
 
     reg [3:0] step;
 
-    // Flag de fase de espera en S_WAIT_BYTE
-    reg wait_phase;  // 0: esperando byte_done; 1: contando delay
+    reg wait_phase;
 
     always @(posedge clk or posedge rst_n) begin
-        if (rst_n == 0) begin
+        if (rst_n) begin
             // Salidas
-            rs        <= 1'b0;
-            en        <= 1'b0;
-            data      <= 4'd0;
+            uo_out[0]  <= 1'b0; // rs = 0 al iniciar (comando)
+            uo_out[1]  <= 1'b0; // en = 0 al iniciar
+            uo_out[7:2] <= 6'b0; // Otros bits no utilizados
+            byte_done   <= 1'b0;
 
             // FSM
             state     <= S_IDLE;
@@ -133,7 +119,6 @@ module tt_um_lcd_controller_Andres078(
             byte_go   <= 1'b0;
             byte_is_data <= 1'b0;
             byte_val  <= 8'h00;
-            byte_done <= 1'b0;
 
             // Contadores
             delay_cnt <= 32'd0;
@@ -146,13 +131,13 @@ module tt_um_lcd_controller_Andres078(
             state <= next_state;
 
             // Motor de envío
-            byte_done <= 1'b0; // pulso de un ciclo al terminar
+            byte_done <= 1'b0;
             case (bstate)
                 B_IDLE: begin
-                    en <= 1'b0;
+                    uo_out[1] <= 1'b0;  // En está desactivado en B_IDLE
                     if (byte_go) begin
-                        rs      <= byte_is_data;
-                        data    <= byte_val[7:4];
+                        uo_out[0] <= byte_is_data;  // rs controlado por el bit 0 de uo_out
+                        uo_out[7:2] <= byte_val[7:2];  // Resto de datos
                         en_cnt  <= 32'd0;
                         wait_cnt<= 32'd0;
                         bstate  <= B_SETUPH;
@@ -161,7 +146,7 @@ module tt_um_lcd_controller_Andres078(
 
                 B_SETUPH: begin
                     bstate <= B_ENHH;
-                    en     <= 1'b1;
+                    uo_out[1] <= 1'b1;  // Activamos EN
                     en_cnt <= 32'd1;
                 end
 
@@ -169,7 +154,7 @@ module tt_um_lcd_controller_Andres078(
                     if (en_cnt < EN_PULSE_CYC) begin
                         en_cnt <= en_cnt + 32'd1;
                     end else begin
-                        en     <= 1'b0;
+                        uo_out[1] <= 1'b0; // Desactivamos EN
                         en_cnt <= 32'd0;
                         bstate <= B_ENHL;
                     end
@@ -179,7 +164,7 @@ module tt_um_lcd_controller_Andres078(
                     if (en_cnt < EN_PULSE_CYC) begin
                         en_cnt <= en_cnt + 32'd1;
                     end else begin
-                        data   <= byte_val[3:0];
+                        uo_out[7:2] <= byte_val[3:0]; // Actualizamos la salida de datos
                         en_cnt <= 32'd0;
                         bstate <= B_SETUPL;
                     end
@@ -187,7 +172,7 @@ module tt_um_lcd_controller_Andres078(
 
                 B_SETUPL: begin
                     bstate <= B_ENLH;
-                    en     <= 1'b1;
+                    uo_out[1] <= 1'b1;  // Activamos EN
                     en_cnt <= 32'd1;
                 end
 
@@ -195,7 +180,7 @@ module tt_um_lcd_controller_Andres078(
                     if (en_cnt < EN_PULSE_CYC) begin
                         en_cnt <= en_cnt + 32'd1;
                     end else begin
-                        en     <= 1'b0;
+                        uo_out[1] <= 1'b0; // Desactivamos EN
                         en_cnt <= 32'd0;
                         bstate <= B_ENLL;
                     end
@@ -207,14 +192,14 @@ module tt_um_lcd_controller_Andres078(
                     end else begin
                         bstate    <= B_IDLE;
                         byte_done <= 1'b1;
-                        byte_go   <= 1'b0; // consumir la orden
+                        byte_go   <= 1'b0;
                     end
                 end
 
                 default: bstate <= B_IDLE;
             endcase
 
-            //  Lógica de la FSM
+            // Lógica de la FSM
             case (state)
                 S_IDLE: begin
                     delay_cnt  <= 32'd0;
@@ -224,16 +209,14 @@ module tt_um_lcd_controller_Andres078(
                     next_state <= S_WAIT_15MS;
                 end
 
-                // Espera inicial >15 ms
                 S_WAIT_15MS: begin
                     if (delay_cnt >= DELAY_15MS_CYC) begin
                         delay_cnt    <= 32'd0;
-                        // Enviar primer 0x30 (equivale a nibble alto 0x3)
                         byte_is_data <= 1'b0;
                         byte_val     <= 8'h30;
                         byte_go      <= 1'b1;
                         step         <= STEP_INIT1;
-                        wait_phase   <= 1'b0;   // primero esperar byte_done
+                        wait_phase   <= 1'b0;
                         next_state   <= S_WAIT_BYTE;
                     end else begin
                         delay_cnt    <= delay_cnt + 32'd1;
@@ -469,5 +452,9 @@ module tt_um_lcd_controller_Andres078(
             endcase
         end
     end
+
+    // Asignación de salidas no utilizadas a 0
+    assign uio_out = 8'b0;   // IOs: Salida a 0
+    assign uio_oe = 8'b0;    // IOs: Enable a 0
 
 endmodule
