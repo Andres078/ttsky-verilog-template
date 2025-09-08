@@ -1,9 +1,6 @@
 `default_nettype none
 `timescale 1ns / 1ps
 
-
-`timescale 1ns / 1ps
-
 module tb;
 
     // Señales DUT
@@ -29,7 +26,7 @@ module tb;
         `endif
 
         .ena    (ena),
-        
+
         .ui_in   (ui_in),
         .uo_out  (uo_out),
         .uio_in  (uio_in),
